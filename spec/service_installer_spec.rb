@@ -52,6 +52,47 @@ describe ServiceInstaller do
 
       expect(installer.unit).to include('User=app').and include('Group=web')
     end
+
+    # Under a version manager these come from shell integration systemd never
+    # runs, so loading the executable through RubyGems fails without them.
+    it 'pins the gem environment' do
+      expect(subject.unit).to include("Environment=GEM_HOME=#{Gem.dir}")
+        .and include("Environment=GEM_PATH=#{Gem.path.uniq.join(File::PATH_SEPARATOR)}")
+    end
+
+    it 'puts the running ruby on the service PATH' do
+      expect(subject.unit).to include(File.dirname(RbConfig.ruby))
+    end
+
+    it 'requests systemd readiness notification' do
+      expect(subject.unit).to include('Type=notify').and include('NotifyAccess=main')
+    end
+
+    it 'restarts on failure' do
+      expect(subject.unit).to include('Restart=on-failure')
+    end
+  end
+
+  describe '#service_path' do
+    it 'lists no directory twice' do
+      entries = subject.service_path.split(File::PATH_SEPARATOR)
+
+      expect(entries).to eq(entries.uniq)
+    end
+
+    it 'puts the resolved directories ahead of the systemd defaults' do
+      entries = subject.service_path.split(File::PATH_SEPARATOR)
+
+      expect(entries.index(bin_dir)).to be < entries.index('/usr/bin')
+    end
+  end
+
+  describe '#executable' do
+    it 'defaults to the running program' do
+      installer = described_class.new(unit_dir: unit_dir, search_paths: [bin_dir], env: env)
+
+      expect(installer.executable).to eq(File.expand_path($PROGRAM_NAME))
+    end
   end
 
   describe '#passenger_status' do
@@ -59,6 +100,27 @@ describe ServiceInstaller do
       installer = described_class.new(unit_dir: unit_dir, search_paths: ['/nonexistent'], env: {})
 
       expect { installer.unit }.to raise_error(ServiceInstaller::Error, /passenger-status not found/)
+    end
+
+    it 'skips a directory that happens to be named passenger-status' do
+      other = Dir.mktmpdir
+      Dir.mkdir(File.join(other, 'passenger-status'))
+      installer = described_class.new(unit_dir: unit_dir, search_paths: [other, bin_dir], env: {})
+
+      expect(installer.passenger_status).to eq(passenger_status)
+    ensure
+      FileUtils.remove_entry(other)
+    end
+
+    it 'skips a non-executable file of the same name' do
+      other = Dir.mktmpdir
+      File.write(File.join(other, 'passenger-status'), '')
+      File.chmod(0o644, File.join(other, 'passenger-status'))
+      installer = described_class.new(unit_dir: unit_dir, search_paths: [other, bin_dir], env: {})
+
+      expect(installer.passenger_status).to eq(passenger_status)
+    ensure
+      FileUtils.remove_entry(other)
     end
 
     it 'honors an explicitly provided path' do
@@ -125,20 +187,47 @@ describe ServiceInstaller do
   end
 
   describe '#uninstall' do
-    before do
-      allow(Process).to receive(:uid).and_return(0)
-      allow(subject).to receive(:system).and_return(true)
+    context 'not running as root' do
+      before { allow(Process).to receive(:uid).and_return(1000) }
+
+      it 'refuses to touch the unit' do
+        expect { subject.uninstall }.to raise_error(ServiceInstaller::Error, /must run as root/)
+      end
     end
 
-    it 'returns nil when no unit is installed' do
-      expect(subject.uninstall).to be_nil
-    end
+    context 'running as root' do
+      before do
+        allow(Process).to receive(:uid).and_return(0)
+        allow(subject).to receive(:system).and_return(true)
+      end
 
-    it 'removes an installed unit' do
-      subject.install
+      it 'returns nil when no unit is installed' do
+        expect(subject.uninstall).to be_nil
+      end
 
-      expect(subject.uninstall).to eq(subject.unit_path)
-      expect(File.exist?(subject.unit_path)).to be(false)
+      it 'removes an installed unit' do
+        subject.install
+
+        expect(subject.uninstall).to eq(subject.unit_path)
+        expect(File.exist?(subject.unit_path)).to be(false)
+      end
+
+      it 'stops and disables the service before removing the unit' do
+        subject.install
+
+        expect(subject).to receive(:system)
+          .with('systemctl', 'disable', '--now', ServiceInstaller::UNIT_NAME, out: File::NULL, err: File::NULL)
+
+        subject.uninstall
+      end
+
+      it 'reloads systemd afterwards' do
+        subject.install
+
+        expect(subject).to receive(:system).with('systemctl', 'daemon-reload').and_return(true)
+
+        subject.uninstall
+      end
     end
   end
 end

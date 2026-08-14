@@ -23,6 +23,14 @@
   `/etc/default/passenger-datadog` for `DD_*` settings
 * Warn instead of returning silently when `passenger-status` produces no output,
   which otherwise makes a misconfigured service look healthy
+* Locate the XML declaration when stripping Passenger 4's non-XML header instead
+  of dropping a fixed three lines. Any shorter non-XML output — such as the
+  one-line error `passenger-status` prints when it cannot run — raised out of the
+  collection loop, which `Restart=on-failure` turned into a restart loop
+* Close the Datadog client from an `ensure`, so a send failure part way through a
+  run cannot leak a socket per run
+* Skip elements that contain only whitespace rather than sending them, which
+  recorded a bogus zero
 * Replace Travis CI with GitHub Actions
 * Upgrade RuboCop to 1.x and refresh the configuration
 * Move development dependencies from the gemspec into the Gemfile

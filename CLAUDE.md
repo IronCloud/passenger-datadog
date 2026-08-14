@@ -45,10 +45,15 @@ separate jobs on Ruby 3.3.
   are skipped, which is what keeps one codebase working across Passenger
   4/5/6 schema drift. The metric-name mapping is documented in
   `docs/passenger-status-xml.md`.
-* `spec/` — fixture-driven: each supported Passenger version has a captured
-  `passenger-status` XML fixture in `spec/fixtures/` and a matching spec
-  context. To support a new Passenger version, capture real output from a
-  live instance and add a fixture + context rather than hand-writing XML.
+* `spec/` — fixture-driven for schema coverage: each supported Passenger version
+  has a captured `passenger-status` XML fixture in `spec/fixtures/` and a
+  matching spec context. To support a new Passenger version, capture real output
+  from a live instance and add a fixture + context rather than hand-writing XML.
+  Everything else is unit- or subprocess-level and uses inline XML: `cli_spec`
+  runs `bin/passenger-datadog` as a real process (dispatch, `--dry-run`, and an
+  sd_notify handshake against a bound `SOCK_DGRAM` socket), `parsers/base_spec`
+  pins the defensive-lookup contract, and `packaging_spec` catches a runtime
+  file that was never `git add`ed.
 
 ## Conventions
 

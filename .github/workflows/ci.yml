@@ -39,3 +39,22 @@ jobs:
           bundler-cache: true
       - name: Run RuboCop
         run: bundle exec rubocop
+
+  package:
+    name: Gem build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - name: Build gem
+        run: |
+          set -o pipefail
+          RUBYOPT=-w gem build passenger_datadog.gemspec 2>&1 | tee build.log
+          if grep -E '^(passenger_datadog\.gemspec|lib/|bin/)[^ ]*:[0-9]+: warning:' build.log; then
+            echo '::error::gem build emitted warnings'
+            exit 1
+          fi

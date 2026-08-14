@@ -16,7 +16,10 @@ module Parsers
     protected
 
     def gauge(xml_key, key)
-      value = xml.xpath(xml_key).text
+      # Strip before the emptiness check: a pretty-printed element that holds
+      # only whitespace carries no value, and forwarding "  " to Datadog would
+      # record a bogus zero rather than nothing at all.
+      value = xml.xpath(xml_key).text.strip
       return if value.empty?
 
       if tags

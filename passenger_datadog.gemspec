@@ -12,8 +12,7 @@ Gem::Specification.new do |s|
   DESCRIPTION
 
   s.email = 'hello@ironcloud.co'
-  s.files = `git ls-files bin lib LICENSE README.md`
-            .split($RS)
+  s.files = `git ls-files bin lib LICENSE README.md`.split("\n")
   s.executables = %w[passenger-datadog]
   s.extra_rdoc_files = ['LICENSE', 'README.md']
   s.homepage = 'https://github.com/IronCloud/passenger-datadog'
