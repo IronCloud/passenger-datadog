@@ -1,18 +1,18 @@
-inherit_from: .rubocop_todo.yml
-
 AllCops:
-  TargetRubyVersion: 2.2
+  TargetRubyVersion: 3.3
+  NewCops: enable
+
+Metrics/AbcSize:
+  Max: 19
 
 Metrics/BlockLength:
   Exclude:
     - 'passenger_datadog.gemspec'
     - 'spec/**/*'
 
-Metrics/LineLength:
+Layout/LineLength:
   Max: 120
 
-# Offense count: 2
-# Configuration parameters: Exclude.
 Naming/FileName:
   Exclude:
     - 'bin/passenger-datadog'

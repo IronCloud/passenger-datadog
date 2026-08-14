@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 module Parsers
   class Base
-    PREFIX = 'passenger'.freeze
+    PREFIX = 'passenger'
 
     attr_reader :batch, :xml, :prefix, :tags
 

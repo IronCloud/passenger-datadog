@@ -91,7 +91,7 @@ describe PassengerDatadog do
 
     it 'sends stats to datadog' do
       allow(Datadog::Statsd).to receive(:new).and_return(statsd)
-      allow(statsd).to receive(:batch).and_yield(statsd)
+      allow(statsd).to receive(:close)
 
       expect(statsd).not_to receive(:gauge).with('passenger.busyness', anything)
       expect(statsd).not_to receive(:gauge).with('passenger.capacity_used', anything)
@@ -149,8 +149,51 @@ describe PassengerDatadog do
     end
 
     it 'sends stats to datadog' do
+      expect(Datadog::Statsd).to receive(:new).with(single_thread: true, buffer_max_pool_size: 1).and_return(statsd)
+      allow(statsd).to receive(:close)
+
+      passenger_status.each do |key, *value|
+        expect(statsd).to receive(:gauge).with(key, *value)
+      end
+
+      subject.run
+    end
+  end
+
+  context 'passenger 6' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_status.xml'))
+    end
+
+    let(:passenger_status) do
+      [['passenger.pool.used', '1'],
+       ['passenger.pool.max', '6'],
+       ['passenger.request_queue', '0'],
+
+       ['passenger.capacity_used', '1'],
+       ['passenger.get_wait_list_size', '0'],
+       ['passenger.disable_wait_list_size', '0'],
+       ['passenger.processes_being_spawned', '0'],
+       ['passenger.enabled_process_count', '1'],
+       ['passenger.disabling_process_count', '0'],
+       ['passenger.disabled_process_count', '0'],
+
+       ['passenger.processed', '6', { tags: ['passenger-process:0'] }],
+       ['passenger.sessions', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.busyness', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.concurrency', '1', { tags: ['passenger-process:0'] }],
+       ['passenger.cpu', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.rss', '28096', { tags: ['passenger-process:0'] }],
+       ['passenger.private_dirty', '3168', { tags: ['passenger-process:0'] }],
+       ['passenger.pss', '13731', { tags: ['passenger-process:0'] }],
+       ['passenger.swap', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.real_memory', '3168', { tags: ['passenger-process:0'] }],
+       ['passenger.vmsize', '623336', { tags: ['passenger-process:0'] }]]
+    end
+
+    it 'sends stats to datadog' do
       allow(Datadog::Statsd).to receive(:new).and_return(statsd)
-      allow(statsd).to receive(:batch).and_yield(statsd)
+      allow(statsd).to receive(:close)
 
       passenger_status.each do |key, *value|
         expect(statsd).to receive(:gauge).with(key, *value)
@@ -225,7 +268,7 @@ describe PassengerDatadog do
 
     it 'sends stats to datadog' do
       allow(Datadog::Statsd).to receive(:new).and_return(statsd)
-      allow(statsd).to receive(:batch).and_yield(statsd)
+      allow(statsd).to receive(:close)
 
       passenger_status.each do |key, *value|
         expect(statsd).to receive(:gauge).with(key, *value)

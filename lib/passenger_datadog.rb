@@ -14,28 +14,27 @@ class PassengerDatadog
     return if status.empty?
 
     # Good job Passenger 4.0.10. Return non xml in your xml output.
-    status = status.split("\n")[3..-1].join("\n") unless status.start_with?('<?xml')
+    status = status.split("\n")[3..].join("\n") unless status.start_with?('<?xml')
 
-    statsd = Datadog::Statsd.new
+    statsd = Datadog::Statsd.new(single_thread: true, buffer_max_pool_size: 1)
     parsed = Nokogiri::XML(status)
 
-    statsd.batch do |batch|
-      run_in_batch(batch, parsed)
-    end
+    run_parsers(statsd, parsed)
+    statsd.close
   end
 
   private
 
-  def run_in_batch(batch, parsed)
-    Parsers::Root.new(batch, parsed.xpath('//info')).run
+  def run_parsers(statsd, parsed)
+    Parsers::Root.new(statsd, parsed.xpath('//info')).run
 
     multiple_supergroups = parsed.xpath('//supergroups/supergroup').count > 1
     parsed.xpath('//supergroups/supergroup').each do |supergroup|
       prefix = multiple_supergroups ? normalize_prefix(supergroup.xpath('name').text) : nil
-      Parsers::Group.new(batch, supergroup.xpath('group'), prefix: prefix).run
+      Parsers::Group.new(statsd, supergroup.xpath('group'), prefix: prefix).run
 
       supergroup.xpath('group/processes/process').each_with_index do |process, index|
-        Parsers::Process.new(batch, process, prefix: prefix, tags: ["passenger-process:#{index}"]).run
+        Parsers::Process.new(statsd, process, prefix: prefix, tags: ["passenger-process:#{index}"]).run
       end
     end
   end

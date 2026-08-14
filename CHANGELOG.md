@@ -1,6 +1,18 @@
 # Change log
 
-## master (unreleased)
+## 2.0.0 (2026-08-14)
+
+### Changes
+
+* Require Ruby >= 3.3 and Passenger >= 6.0
+* Upgrade `dogstatsd-ruby` to 5.x; the client is configured for single-threaded
+  operation so metrics are flushed per run without leaking sender threads
+* Replace the `daemons`-based daemonization with a foreground process supervised
+  by systemd (`packaging/passenger-datadog.service`)
+* Replace Travis CI with GitHub Actions
+* Upgrade RuboCop to 1.x and refresh the configuration
+* Move development dependencies from the gemspec into the Gemfile
+* Add a Passenger 6.1 fixture captured from a live instance and a matching spec
 
 
 ## 1.1.0 (2018-04-27)

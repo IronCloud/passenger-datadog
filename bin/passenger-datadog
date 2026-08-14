@@ -1,13 +1,27 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift(File.dirname(File.expand_path(__FILE__)) + '/../lib')
-require 'daemons'
+$LOAD_PATH.unshift("#{File.dirname(File.expand_path(__FILE__))}/../lib")
 require 'passenger_datadog'
 
-Daemons.run_proc('passenger-datadog', dir_mode: :system) do
-  loop do
-    PassengerDatadog.new.run
-    sleep(30)
-  end
+INTERVAL = 30
+
+def notify_ready
+  socket = ENV.fetch('NOTIFY_SOCKET', nil)
+  return if socket.nil? || socket.empty?
+
+  require 'socket'
+  UNIXSocket.new(socket).puts('READY=1')
+rescue StandardError => e
+  warn "sd_notify failed: #{e.message}"
+end
+
+trap('TERM') { exit }
+trap('INT') { exit }
+
+notify_ready
+
+loop do
+  PassengerDatadog.new.run
+  sleep(INTERVAL)
 end
