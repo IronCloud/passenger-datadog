@@ -13,7 +13,6 @@ class ServiceInstaller
 
   UNIT_NAME = 'passenger-datadog.service'
   UNIT_DIR = '/etc/systemd/system'
-  ENVIRONMENT_FILE = '/etc/default/passenger-datadog'
 
   # systemd starts services with a minimal PATH; these are its usual defaults,
   # which we extend with the directories the resolved binaries actually live in.
@@ -35,8 +34,6 @@ class ServiceInstaller
     # systemd inherits no gem environment, so pin the one this Ruby is using.
     Environment=GEM_HOME=%<gem_home>s
     Environment=GEM_PATH=%<gem_path>s
-    # Optional: set DD_AGENT_HOST, DD_DOGSTATSD_PORT, DD_TAGS, etc.
-    EnvironmentFile=-%<environment_file>s
     Restart=on-failure
     RestartSec=5s
     # Passenger recommends running passenger-status as root so it can see every
@@ -106,7 +103,7 @@ class ServiceInstaller
 
   def unit
     format(UNIT_TEMPLATE, exec_start: exec_start, path: service_path, gem_home: gem_home,
-                          gem_path: gem_path, environment_file: ENVIRONMENT_FILE, user: user, group: group)
+                          gem_path: gem_path, user: user, group: group)
   end
 
   # Writes the unit and reloads systemd. Returns the path written.

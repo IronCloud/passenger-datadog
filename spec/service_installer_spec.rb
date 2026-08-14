@@ -38,10 +38,6 @@ describe ServiceInstaller do
       expect(subject.unit).to include('/usr/local/bin').and include('/usr/bin')
     end
 
-    it 'references an optional environment file for the Datadog settings' do
-      expect(subject.unit).to include('EnvironmentFile=-/etc/default/passenger-datadog')
-    end
-
     it 'defaults to running as root' do
       expect(subject.unit).to include('User=root').and include('Group=root')
     end

@@ -59,7 +59,6 @@ ExecStart=/usr/share/rvm/rubies/ruby-3.3.1/bin/ruby /usr/share/rvm/gems/ruby-3.3
 Environment=PATH=/usr/share/rvm/gems/ruby-3.3.1/bin:/usr/share/rvm/rubies/ruby-3.3.1/bin:/usr/local/sbin:...
 Environment=GEM_HOME=/usr/share/rvm/gems/ruby-3.3.1
 Environment=GEM_PATH=/usr/share/rvm/gems/ruby-3.3.1:...
-EnvironmentFile=-/etc/default/passenger-datadog
 Restart=on-failure
 RestartSec=5s
 User=root
@@ -88,22 +87,6 @@ regenerate it:**
 sudo passenger-datadog install-service --force
 sudo systemctl restart passenger-datadog
 ```
-
-## Collector configuration
-
-The collector runs every 30 seconds. The Datadog client honors the usual
-environment variables for the DogStatsD endpoint. Put them in
-`/etc/default/passenger-datadog`, which the unit reads if it exists:
-
-```sh
-DD_AGENT_HOST=10.0.0.5
-DD_DOGSTATSD_PORT=8125
-DD_TAGS=env:production,role:web
-```
-
-`DD_DOGSTATSD_SOCKET`, `DD_ENV`, `DD_SERVICE`, `DD_VERSION`, `DD_CARDINALITY`
-and the rest are supported per the dogstatsd-ruby docs. Restart the service
-after changing the file.
 
 ## Operating
 

@@ -59,6 +59,5 @@ $ sudo env PATH="$PATH" GEM_HOME="$GEM_HOME" GEM_PATH="$GEM_PATH" \
     passenger-datadog install-service
 ```
 
-Set `DD_AGENT_HOST`, `DD_DOGSTATSD_PORT`, `DD_TAGS`, and friends in
-`/etc/default/passenger-datadog`. Regenerate the unit with `--force` after a
-Ruby upgrade. See [docs/systemd.md](docs/systemd.md) for the full guide.
+Regenerate the unit with `--force` after a Ruby upgrade. See
+[docs/systemd.md](docs/systemd.md) for the full guide.
