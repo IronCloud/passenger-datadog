@@ -11,7 +11,12 @@ require 'parsers/process'
 class PassengerDatadog
   def run
     status = `passenger-status --show=xml`
-    return if status.empty?
+    if status.empty?
+      # Usually a PATH problem under systemd rather than an idle Passenger, and
+      # silence here makes a misconfigured service look healthy.
+      warn('passenger-status produced no output; skipping this collection run')
+      return
+    end
 
     # Good job Passenger 4.0.10. Return non xml in your xml output.
     status = status.split("\n")[3..].join("\n") unless status.start_with?('<?xml')

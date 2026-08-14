@@ -2,3 +2,6 @@
 Gemfile.lock
 spec/examples.txt
 tags
+docs/adr/
+CLAUDE.local.md
+MILESTONES.md

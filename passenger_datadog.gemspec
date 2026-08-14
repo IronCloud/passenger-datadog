@@ -12,7 +12,7 @@ Gem::Specification.new do |s|
   DESCRIPTION
 
   s.email = 'hello@ironcloud.co'
-  s.files = `git ls-files bin lib docs packaging LICENSE README.md`
+  s.files = `git ls-files bin lib LICENSE README.md`
             .split($RS)
   s.executables = %w[passenger-datadog]
   s.extra_rdoc_files = ['LICENSE', 'README.md']
@@ -29,5 +29,5 @@ Gem::Specification.new do |s|
 
   s.add_dependency('dogstatsd-ruby', '~> 5.7')
   s.add_dependency('nokogiri', '~> 1.16')
-  s.add_dependency('passenger', '>= 6.0.0')
+  s.add_dependency('passenger', '~> 6.0')
 end

@@ -13,6 +13,11 @@ Metrics/BlockLength:
 Layout/LineLength:
   Max: 120
 
+# Keyword arguments are self-documenting at the call site, so a long keyword
+# list does not carry the readability cost this cop guards against.
+Metrics/ParameterLists:
+  CountKeywordArgs: false
+
 Naming/FileName:
   Exclude:
     - 'bin/passenger-datadog'

@@ -40,10 +40,25 @@ The process collects Passenger stats and sends them to Datadog every 30
 seconds. It runs in the foreground and shuts down cleanly on `SIGTERM`/`SIGINT`.
 
 ### As a systemd service
-The gem ships a systemd unit at `packaging/passenger-datadog.service`:
+Generate and install a unit for this host, then start it:
 
 ```
-$ sudo install -m 644 packaging/passenger-datadog.service /etc/systemd/system/
-$ sudo systemctl daemon-reload
+$ sudo passenger-datadog install-service
 $ sudo systemctl enable --now passenger-datadog
 ```
+
+`install-service` resolves the Ruby interpreter, the executable, and
+`passenger-status` on the machine it runs on, and writes those absolute paths
+into `/etc/systemd/system/passenger-datadog.service`. Use `--dry-run` to print
+the unit without writing it, and `uninstall-service` to remove it.
+
+Under rvm/rbenv/asdf, `sudo` drops the gem environment, so pass it through:
+
+```
+$ sudo env PATH="$PATH" GEM_HOME="$GEM_HOME" GEM_PATH="$GEM_PATH" \
+    passenger-datadog install-service
+```
+
+Set `DD_AGENT_HOST`, `DD_DOGSTATSD_PORT`, `DD_TAGS`, and friends in
+`/etc/default/passenger-datadog`. Regenerate the unit with `--force` after a
+Ruby upgrade. See [docs/systemd.md](docs/systemd.md) for the full guide.
