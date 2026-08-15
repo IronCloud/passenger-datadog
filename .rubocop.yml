@@ -1,18 +1,23 @@
-inherit_from: .rubocop_todo.yml
-
 AllCops:
-  TargetRubyVersion: 2.2
+  TargetRubyVersion: 3.3
+  NewCops: enable
+
+Metrics/AbcSize:
+  Max: 19
 
 Metrics/BlockLength:
   Exclude:
     - 'passenger_datadog.gemspec'
     - 'spec/**/*'
 
-Metrics/LineLength:
+Layout/LineLength:
   Max: 120
 
-# Offense count: 2
-# Configuration parameters: Exclude.
+# Keyword arguments are self-documenting at the call site, so a long keyword
+# list does not carry the readability cost this cop guards against.
+Metrics/ParameterLists:
+  CountKeywordArgs: false
+
 Naming/FileName:
   Exclude:
     - 'bin/passenger-datadog'

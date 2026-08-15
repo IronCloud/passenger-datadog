@@ -10,10 +10,144 @@ describe PassengerDatadog do
   context 'passenger not running' do
     before do
       allow(subject).to receive(:`).and_return('')
+      allow(subject).to receive(:warn)
     end
 
     it 'does not send stats to datadog' do
       expect(Datadog::Statsd).not_to receive(:new)
+
+      subject.run
+    end
+
+    # A silent skip here made a service that could not find passenger-status
+    # look healthy while shipping zero metrics indefinitely.
+    it 'warns so the failure is visible in the journal' do
+      expect(subject).to receive(:warn).with(/produced no output/)
+
+      subject.run
+    end
+  end
+
+  context 'passenger-status prints an error instead of xml' do
+    before do
+      allow(subject).to receive(:`).and_return("passenger-status: command not found\n")
+      allow(subject).to receive(:warn)
+    end
+
+    # Shorter than the three header lines Passenger 4 prefixes, which a fixed
+    # line-count strip turned into a nil that killed the collection loop.
+    it 'does not raise' do
+      expect { subject.run }.not_to raise_error
+    end
+
+    it 'does not send stats to datadog' do
+      expect(Datadog::Statsd).not_to receive(:new)
+
+      subject.run
+    end
+
+    it 'warns with the output it got' do
+      expect(subject).to receive(:warn).with(/no XML.*command not found/)
+
+      subject.run
+    end
+  end
+
+  context 'passenger-status output is not parseable xml' do
+    before do
+      allow(subject).to receive(:`).and_return("<?xml version=\"1.0\"?>\n<info><process_coun")
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:close)
+    end
+
+    it 'sends nothing rather than raising' do
+      expect(statsd).not_to receive(:gauge)
+
+      expect { subject.run }.not_to raise_error
+    end
+
+    it 'still closes the client' do
+      expect(statsd).to receive(:close)
+
+      subject.run
+    end
+  end
+
+  context 'sending fails partway through a run' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_status.xml'))
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:gauge).and_raise(SocketError, 'no route to host')
+    end
+
+    # Without this the service leaks one socket per 30-second run.
+    it 'closes the client before propagating' do
+      expect(statsd).to receive(:close)
+
+      expect { subject.run }.to raise_error(SocketError)
+    end
+  end
+
+  describe 'supergroup prefixes' do
+    def status_for(*names)
+      groups = names.map do |name|
+        "<supergroup><name>#{name}</name><group><capacity_used>1</capacity_used>" \
+          '<processes><process><cpu>1</cpu></process></processes></group></supergroup>'
+      end
+      '<?xml version="1.0"?><info><process_count>1</process_count>' \
+        "<supergroups>#{groups.join}</supergroups></info>"
+    end
+
+    before do
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:close)
+      allow(statsd).to receive(:gauge)
+    end
+
+    it 'omits the prefix when there is only one supergroup' do
+      allow(subject).to receive(:`).and_return(status_for('/var/www/app (production)'))
+
+      expect(statsd).to receive(:gauge).with('passenger.capacity_used', '1')
+
+      subject.run
+    end
+
+    # The normalizer strips every non-word character *and every digit*, so a
+    # path-shaped supergroup name collapses to its letters. Pinned rather than
+    # changed: the mapping is what existing dashboards are built on.
+    it 'normalizes a path-shaped name to letters and underscores' do
+      allow(subject).to receive(:`).and_return(status_for('/var/www/app (production)', '/var/www/other'))
+
+      expect(statsd).to receive(:gauge).with('passenger.varwwwapp_production.capacity_used', '1')
+
+      subject.run
+    end
+
+    it 'strips digits out of the name' do
+      allow(subject).to receive(:`).and_return(status_for('app1 staging', 'app2 staging'))
+
+      expect(statsd).to receive(:gauge).with('passenger.app_staging.capacity_used', '1').twice
+
+      subject.run
+    end
+
+    # Documented consequence of stripping digits: two supergroups whose names
+    # differ only by a digit share one metric name.
+    it 'collides when two names normalize the same' do
+      allow(subject).to receive(:`).and_return(status_for('app1', 'app2'))
+
+      expect(statsd).to receive(:gauge).with('passenger.app.capacity_used', '1').twice
+
+      subject.run
+    end
+
+    # The index restarts per supergroup, so the metric prefix is what keeps the
+    # two supergroups' process series apart.
+    it 'tags process index per supergroup, not globally' do
+      allow(subject).to receive(:`).and_return(status_for('alpha', 'beta'))
+
+      expect(statsd).to receive(:gauge).with('passenger.alpha.cpu', '1', tags: ['passenger-process:0'])
+      expect(statsd).to receive(:gauge).with('passenger.beta.cpu', '1', tags: ['passenger-process:0'])
 
       subject.run
     end
@@ -91,7 +225,7 @@ describe PassengerDatadog do
 
     it 'sends stats to datadog' do
       allow(Datadog::Statsd).to receive(:new).and_return(statsd)
-      allow(statsd).to receive(:batch).and_yield(statsd)
+      allow(statsd).to receive(:close)
 
       expect(statsd).not_to receive(:gauge).with('passenger.busyness', anything)
       expect(statsd).not_to receive(:gauge).with('passenger.capacity_used', anything)
@@ -149,12 +283,164 @@ describe PassengerDatadog do
     end
 
     it 'sends stats to datadog' do
-      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
-      allow(statsd).to receive(:batch).and_yield(statsd)
+      expect(Datadog::Statsd).to receive(:new).with(single_thread: true, buffer_max_pool_size: 1).and_return(statsd)
+      allow(statsd).to receive(:close)
 
       passenger_status.each do |key, *value|
         expect(statsd).to receive(:gauge).with(key, *value)
       end
+
+      subject.run
+    end
+  end
+
+  context 'passenger 6' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_status.xml'))
+    end
+
+    let(:passenger_status) do
+      [['passenger.pool.used', '1'],
+       ['passenger.pool.max', '6'],
+       ['passenger.request_queue', '0'],
+
+       ['passenger.capacity_used', '1'],
+       ['passenger.get_wait_list_size', '0'],
+       ['passenger.disable_wait_list_size', '0'],
+       ['passenger.processes_being_spawned', '0'],
+       ['passenger.enabled_process_count', '1'],
+       ['passenger.disabling_process_count', '0'],
+       ['passenger.disabled_process_count', '0'],
+
+       ['passenger.processed', '6', { tags: ['passenger-process:0'] }],
+       ['passenger.sessions', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.busyness', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.concurrency', '1', { tags: ['passenger-process:0'] }],
+       ['passenger.cpu', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.rss', '28096', { tags: ['passenger-process:0'] }],
+       ['passenger.private_dirty', '3168', { tags: ['passenger-process:0'] }],
+       ['passenger.pss', '13731', { tags: ['passenger-process:0'] }],
+       ['passenger.swap', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.real_memory', '3168', { tags: ['passenger-process:0'] }],
+       ['passenger.vmsize', '623336', { tags: ['passenger-process:0'] }]]
+    end
+
+    it 'sends stats to datadog' do
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:close)
+
+      passenger_status.each do |key, *value|
+        expect(statsd).to receive(:gauge).with(key, *value)
+      end
+
+      subject.run
+    end
+  end
+
+  # Captured from a live Passenger 6.1.8 instance running as a dynamic nginx
+  # module on Amazon Linux 2023 (nginx 1.30.4 stable, rbenv Ruby 3.3.12).
+  context 'passenger 6 on nginx (Amazon Linux 2023)' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_status_nginx_al2023.xml'))
+    end
+
+    let(:passenger_status) do
+      [['passenger.pool.used', '1'],
+       ['passenger.pool.max', '6'],
+       ['passenger.request_queue', '0'],
+
+       ['passenger.capacity_used', '1'],
+       ['passenger.get_wait_list_size', '0'],
+       ['passenger.disable_wait_list_size', '0'],
+       ['passenger.processes_being_spawned', '0'],
+       ['passenger.enabled_process_count', '1'],
+       ['passenger.disabling_process_count', '0'],
+       ['passenger.disabled_process_count', '0'],
+
+       ['passenger.processed', '1', { tags: ['passenger-process:0'] }],
+       ['passenger.sessions', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.busyness', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.concurrency', '1', { tags: ['passenger-process:0'] }],
+       ['passenger.cpu', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.rss', '13716', { tags: ['passenger-process:0'] }],
+       ['passenger.private_dirty', '2916', { tags: ['passenger-process:0'] }],
+       ['passenger.pss', '6975', { tags: ['passenger-process:0'] }],
+       ['passenger.swap', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.real_memory', '2916', { tags: ['passenger-process:0'] }],
+       ['passenger.vmsize', '831528', { tags: ['passenger-process:0'] }]]
+    end
+
+    it 'sends stats to datadog' do
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:close)
+
+      passenger_status.each do |key, *value|
+        expect(statsd).to receive(:gauge).with(key, *value)
+      end
+
+      subject.run
+    end
+  end
+
+  # Captured from a live Passenger 6.1.8 standalone instance started with
+  # --min-instances 0 and never sent a request: the group exists, `<processes/>`
+  # is empty, and every count is zero.
+  context 'passenger 6 with no processes' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_status_no_processes.xml'))
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:close)
+    end
+
+    let(:passenger_status) do
+      [['passenger.pool.used', '0'],
+       ['passenger.pool.max', '4'],
+       ['passenger.request_queue', '0'],
+
+       ['passenger.capacity_used', '0'],
+       ['passenger.get_wait_list_size', '0'],
+       ['passenger.disable_wait_list_size', '0'],
+       ['passenger.processes_being_spawned', '0'],
+       ['passenger.enabled_process_count', '0'],
+       ['passenger.disabling_process_count', '0'],
+       ['passenger.disabled_process_count', '0']]
+    end
+
+    it 'sends the pool and group stats' do
+      passenger_status.each do |key, *value|
+        expect(statsd).to receive(:gauge).with(key, *value)
+      end
+
+      subject.run
+    end
+
+    it 'sends no per-process stats' do
+      allow(statsd).to receive(:gauge)
+
+      expect(statsd).not_to receive(:gauge).with(anything, anything, hash_including(:tags))
+
+      subject.run
+    end
+  end
+
+  # Captured from a host running two Passenger instances, where passenger-status
+  # refuses to guess and prints its instance list to stdout. Eleven lines of
+  # non-XML: long enough to survive a fixed three-line header strip, which is how
+  # this silently produced zero metrics rather than saying anything.
+  context 'passenger 6 with multiple instances running' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_multiple_instances.txt'))
+      allow(subject).to receive(:warn)
+    end
+
+    it 'sends nothing' do
+      expect(Datadog::Statsd).not_to receive(:new)
+
+      subject.run
+    end
+
+    it 'says why in the journal' do
+      expect(subject).to receive(:warn).with(/no XML.*multiple Phusion Passenger/)
 
       subject.run
     end
@@ -225,7 +511,7 @@ describe PassengerDatadog do
 
     it 'sends stats to datadog' do
       allow(Datadog::Statsd).to receive(:new).and_return(statsd)
-      allow(statsd).to receive(:batch).and_yield(statsd)
+      allow(statsd).to receive(:close)
 
       passenger_status.each do |key, *value|
         expect(statsd).to receive(:gauge).with(key, *value)

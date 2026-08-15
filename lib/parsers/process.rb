@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Parsers
   class Process < Base
     STATS = %w[

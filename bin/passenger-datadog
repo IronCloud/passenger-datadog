@@ -1,13 +1,111 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-$LOAD_PATH.unshift(File.dirname(File.expand_path(__FILE__)) + '/../lib')
-require 'daemons'
+$LOAD_PATH.unshift("#{File.dirname(File.expand_path(__FILE__))}/../lib")
+require 'optparse'
 require 'passenger_datadog'
+require 'service_installer'
 
-Daemons.run_proc('passenger-datadog', dir_mode: :system) do
+INTERVAL = 30
+
+USAGE = <<~USAGE
+  Usage: passenger-datadog [command] [options]
+
+  Commands:
+    (none)             Run the collector in the foreground (default).
+    install-service    Generate and install the systemd unit for this host.
+    uninstall-service  Disable and remove the systemd unit.
+
+  Options for install-service:
+    --dry-run          Print the generated unit instead of writing it.
+    --force            Overwrite an existing unit file.
+    --enable-now       Also run `systemctl enable --now` after installing.
+    --user USER        User= for the unit (default: root).
+    --group GROUP      Group= for the unit (default: root).
+    --passenger-status PATH
+                       Path to passenger-status (default: auto-detected).
+USAGE
+
+SWITCHES = { '--dry-run' => :dry_run, '--force' => :force, '--enable-now' => :enable_now }.freeze
+VALUE_FLAGS = { '--user USER' => :user, '--group GROUP' => :group,
+                '--passenger-status PATH' => :passenger_status }.freeze
+
+def parse_options(argv)
+  options = { user: 'root', group: 'root' }
+  OptionParser.new do |parser|
+    SWITCHES.each { |flag, key| parser.on(flag) { options[key] = true } }
+    VALUE_FLAGS.each { |flag, key| parser.on(flag) { |value| options[key] = value } }
+    parser.on('-h', '--help') { abort(USAGE) }
+  end.parse!(argv)
+  options
+end
+
+def install_service(options)
+  installer = ServiceInstaller.new(user: options[:user], group: options[:group],
+                                   passenger_status: options[:passenger_status])
+  return puts(installer.unit) if options[:dry_run]
+
+  path = installer.install(force: options[:force])
+  warn("wrote #{path}")
+  warn('ran  systemctl daemon-reload')
+  enable_now if options[:enable_now]
+end
+
+def enable_now
+  raise ServiceInstaller::Error, 'systemctl enable --now failed' unless
+    system('systemctl', 'enable', '--now', ServiceInstaller::UNIT_NAME)
+
+  warn("ran  systemctl enable --now #{ServiceInstaller::UNIT_NAME}")
+end
+
+def uninstall_service(options)
+  path = ServiceInstaller.new(user: options[:user], group: options[:group]).uninstall
+  warn(path ? "removed #{path}" : 'no unit installed')
+end
+
+def collect_forever
+  trap('TERM') { exit }
+  trap('INT') { exit }
+  notify_ready
+
   loop do
     PassengerDatadog.new.run
-    sleep(30)
+    sleep(INTERVAL)
   end
+end
+
+def notify_address
+  address = ENV.fetch('NOTIFY_SOCKET', nil)
+  return nil if address.nil? || address.empty?
+
+  # A leading '@' denotes the abstract namespace, whose address starts with NUL.
+  address.start_with?('@') ? "\0#{address[1..]}" : address
+end
+
+def notify_ready
+  address = notify_address
+  return if address.nil?
+
+  require 'socket'
+  # systemd's notify socket is SOCK_DGRAM; a stream socket gets EPROTOTYPE.
+  socket = Socket.new(:UNIX, :DGRAM)
+  socket.connect(Socket.pack_sockaddr_un(address))
+  socket.send('READY=1', 0)
+  socket.close
+rescue StandardError => e
+  warn "sd_notify failed: #{e.message}"
+end
+
+command = ARGV.first&.start_with?('-') ? nil : ARGV.shift
+options = parse_options(ARGV)
+
+begin
+  case command
+  when nil then collect_forever
+  when 'install-service' then install_service(options)
+  when 'uninstall-service' then uninstall_service(options)
+  else abort("unknown command: #{command}\n\n#{USAGE}")
+  end
+rescue ServiceInstaller::Error => e
+  abort("passenger-datadog: #{e.message}")
 end
