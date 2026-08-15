@@ -61,3 +61,21 @@ $ sudo env PATH="$PATH" GEM_HOME="$GEM_HOME" GEM_PATH="$GEM_PATH" \
 
 Regenerate the unit with `--force` after a Ruby upgrade. See
 [docs/systemd.md](docs/systemd.md) for the full guide.
+
+## Release
+
+Releases use RubyGems [trusted publishing](https://guides.rubygems.org/trusted-publishing) —
+no API tokens. The trusted publisher must be registered for this repo and the
+`release.yml` workflow on RubyGems.org (a pending publisher becomes a normal
+one after its first push). To release:
+
+1. Bump the version in `passenger_datadog.gemspec` and add a `CHANGELOG.md` entry.
+2. Commit, tag, and push:
+
+```
+$ git tag v2.0.0
+$ git push origin v2.0.0
+```
+
+`.github/workflows/release.yml` builds the gem and pushes it to RubyGems.org,
+authenticating with an OIDC token scoped to this gem.
