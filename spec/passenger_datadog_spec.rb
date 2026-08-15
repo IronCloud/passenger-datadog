@@ -338,11 +338,7 @@ describe PassengerDatadog do
   end
 
   # Captured from a live Passenger 6.1.8 instance running as a dynamic nginx
-  # module on Amazon Linux 2023 (nginx 1.30.4 stable, rbenv Ruby 3.3.12). The
-  # single app group runs as the `vagrant` user and the nginx.conf uses
-  # `user root;` plus `passenger_default_user`, so the socket-path length trap
-  # (PrivateTmp=true in the AL2023 nginx unit) had to be fixed before
-  # passenger-status could run at all.
+  # module on Amazon Linux 2023 (nginx 1.30.4 stable, rbenv Ruby 3.3.12).
   context 'passenger 6 on nginx (Amazon Linux 2023)' do
     before do
       allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_status_nginx_al2023.xml'))
