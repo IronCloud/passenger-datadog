@@ -1,5 +1,14 @@
 # Change log
 
+## Unreleased
+
+### Changes
+
+* Publish as `passenger-datadog-stats`. RubyGems rejects `passenger-datadog` as
+  too similar to the abandoned `passenger_datadog`. The executable, the systemd
+  unit name, and the library paths are unchanged
+* Test on Ruby 4.0 in addition to 3.3 and 3.4
+
 ## 2.0.0 (2026-08-14)
 
 ### New features

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 Gem::Specification.new do |s|
-  s.name = 'passenger-datadog'
+  s.name = 'passenger-datadog-stats'
   s.version = '2.0.0'
   s.platform = Gem::Platform::RUBY
   s.required_ruby_version = '>= 3.3.0'
@@ -21,7 +21,7 @@ Gem::Specification.new do |s|
     'rubygems_mfa_required' => 'true',
     'source_code_uri' => 'https://github.com/IronCloud/passenger-datadog',
     'changelog_uri' => 'https://github.com/IronCloud/passenger-datadog/blob/main/CHANGELOG.md',
-    'documentation_uri' => 'https://www.rubydoc.info/gems/passenger-datadog'
+    'documentation_uri' => 'https://www.rubydoc.info/gems/passenger-datadog-stats'
   }
   s.require_paths = ['lib']
   s.summary = 'A tool for sending Passenger stats to Datadog (continuation of passenger_datadog)'

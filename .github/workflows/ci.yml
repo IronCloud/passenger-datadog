@@ -16,6 +16,7 @@ jobs:
         ruby:
           - '3.3'
           - '3.4'
+          - '4.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -54,8 +55,8 @@ jobs:
       - name: Build gem
         run: |
           set -o pipefail
-          RUBYOPT=-w gem build passenger_datadog.gemspec 2>&1 | tee build.log
-          if grep -E '^(passenger_datadog\.gemspec|lib/|bin/)[^ ]*:[0-9]+: warning:' build.log; then
+          RUBYOPT=-w gem build passenger-datadog-stats.gemspec 2>&1 | tee build.log
+          if grep -E '^(passenger-datadog-stats\.gemspec|lib/|bin/)[^ ]*:[0-9]+: warning:' build.log; then
             echo '::error::gem build emitted warnings'
             exit 1
           fi

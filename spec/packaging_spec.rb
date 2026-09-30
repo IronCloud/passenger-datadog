@@ -5,12 +5,18 @@ require 'spec_helper'
 # `s.files` is built from `git ls-files`, so a file that exists on disk but was
 # never `git add`ed silently disappears from the built gem.
 describe 'the gemspec' do
-  subject(:gemspec) { Gem::Specification.load(File.expand_path('../passenger_datadog.gemspec', __dir__)) }
+  subject(:gemspec) { Gem::Specification.load(File.expand_path('../passenger-datadog-stats.gemspec', __dir__)) }
 
   let(:tracked) { Dir.glob('{bin,lib}/**/*').select { |path| File.file?(path) } }
 
   it 'packages every runtime file' do
     expect(gemspec.files).to include(*tracked)
+  end
+
+  # `passenger-datadog` is unavailable on RubyGems: it differs from the abandoned
+  # `passenger_datadog` only by punctuation, which RubyGems rejects as too similar.
+  it 'publishes under a name distinct from the original gem' do
+    expect(gemspec.name).to eq('passenger-datadog-stats')
   end
 
   it 'packages the executable' do
