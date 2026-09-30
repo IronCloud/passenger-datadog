@@ -1,15 +1,6 @@
 # Change log
 
-## Unreleased
-
-### Changes
-
-* Publish as `passenger-datadog-stats`. RubyGems rejects `passenger-datadog` as
-  too similar to the abandoned `passenger_datadog`. The executable, the systemd
-  unit name, and the library paths are unchanged
-* Test on Ruby 4.0 in addition to 3.3 and 3.4
-
-## 2.0.0 (2026-08-14)
+## 2.0.0 (2026-09-30)
 
 ### New features
 
@@ -22,6 +13,10 @@
 
 ### Changes
 
+* Publish as `passenger-datadog-stats`. RubyGems rejects `passenger-datadog` as
+  too similar to the abandoned `passenger_datadog`. The executable, the systemd
+  unit name, and the library paths are unchanged
+* Test on Ruby 4.0 in addition to 3.3 and 3.4
 * Require Ruby >= 3.3 and Passenger >= 6.0
 * Upgrade `dogstatsd-ruby` to 5.x; the client is configured for single-threaded
   operation so metrics are flushed per run without leaking sender threads
