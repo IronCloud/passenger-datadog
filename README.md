@@ -1,11 +1,14 @@
-[![Gem Version](https://badge.fury.io/rb/passenger-datadog.svg)](https://badge.fury.io/rb/passenger-datadog)
+[![Gem Version](https://badge.fury.io/rb/passenger-datadog-stats.svg)](https://badge.fury.io/rb/passenger-datadog-stats)
 [![CI](https://github.com/IronCloud/passenger-datadog/actions/workflows/ci.yml/badge.svg)](https://github.com/IronCloud/passenger-datadog/actions/workflows/ci.yml)
 [![License](http://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-# passenger-datadog
+# passenger-datadog-stats
 
 A continuation of the abandoned [passenger_datadog](https://rubygems.org/gems/passenger_datadog)
 gem by [Ryan Rosenblum](https://github.com/rrosenblum), maintained by IronCloud.
+It is published as `passenger-datadog-stats` because RubyGems treats
+`passenger-datadog` as the same name as the original. The executable is still
+`passenger-datadog`, so existing commands and systemd units keep working.
 
 Inspired by [passengeri-datadog-monitor](https://github.com/Sjeanpierre/passenger-datadog-monitor)
 
@@ -22,11 +25,11 @@ in Passenger, make sure that same version of Passenger is installed for both use
 
 ## Installation
 ```
-$ gem install passenger-datadog
+$ gem install passenger-datadog-stats
 ```
 
 ## Support
-* Ruby >= 3.3
+* Ruby >= 3.3 (tested on 3.3, 3.4, and 4.0)
 * Passenger >= 6.0
 
 ## Usage
@@ -69,7 +72,7 @@ no API tokens. The trusted publisher must be registered for this repo and the
 `release.yml` workflow on RubyGems.org (a pending publisher becomes a normal
 one after its first push). To release:
 
-1. Bump the version in `passenger_datadog.gemspec` and add a `CHANGELOG.md` entry.
+1. Bump the version in `passenger-datadog-stats.gemspec` and add a `CHANGELOG.md` entry.
 2. Commit, tag, and push:
 
 ```

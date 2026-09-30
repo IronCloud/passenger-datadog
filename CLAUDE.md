@@ -4,8 +4,9 @@ Guidance for working in this repository.
 
 ## What this is
 
-`passenger-datadog` is a small Ruby gem (a maintained continuation of the
-abandoned `passenger_datadog`) that shells out to `passenger-status --show=xml`,
+`passenger-datadog-stats` is a small Ruby gem (a maintained continuation of the
+abandoned `passenger_datadog`, renamed because RubyGems rejects `passenger-datadog`
+as too similar; the executable is still `passenger-datadog`) that shells out to `passenger-status --show=xml`,
 parses the XML with Nokogiri, and sends Phusion Passenger pool/group/process
 stats to Datadog as gauges via `dogstatsd-ruby` 5.x. It runs as a foreground
 process; `passenger-datadog install-service` generates a host-specific systemd
@@ -20,11 +21,11 @@ bundle install                        # install dependencies
 bundle exec rspec                     # test suite
 bundle exec rubocop                   # lint (must stay offense-free)
 bundle exec rake                      # default task: spec + rubocop
-gem build passenger_datadog.gemspec   # package (must emit zero warnings)
+gem build passenger-datadog-stats.gemspec   # package (must emit zero warnings)
 ```
 
-CI (GitHub Actions, `.github/workflows/ci.yml`) runs rspec and rubocop as
-separate jobs on Ruby 3.3.
+CI (GitHub Actions, `.github/workflows/ci.yml`) runs rspec on Ruby 3.3, 3.4,
+and 4.0, and rubocop and the gem build on Ruby 3.3.
 
 ## Architecture
 

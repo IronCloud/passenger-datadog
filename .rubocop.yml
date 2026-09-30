@@ -7,7 +7,7 @@ Metrics/AbcSize:
 
 Metrics/BlockLength:
   Exclude:
-    - 'passenger_datadog.gemspec'
+    - 'passenger-datadog-stats.gemspec'
     - 'spec/**/*'
 
 Layout/LineLength:
