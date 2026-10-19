@@ -99,6 +99,10 @@ Fixtures used by the spec suite live in `spec/fixtures/`:
 * `passenger_5_status.xml`
 * `passenger_5_status_multiple_supergroups.xml`
 * `passenger_6_status.xml`
+* `passenger_6_2_status.xml` — Passenger 6.2.1 standalone in a `ruby:3.3`
+  container; same element set as the 6.1.8 fixtures. The image needs `procps`
+  installed, or Passenger cannot read process metrics and omits `<cpu>`,
+  `<rss>`, and the other memory elements
 * `passenger_6_status_no_processes.xml` — a group with `<processes/>` empty,
   captured from a 6.1.8 instance started with `--min-instances 0` that was never
   sent a request

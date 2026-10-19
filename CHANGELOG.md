@@ -1,5 +1,12 @@
 # Change log
 
+## Unreleased
+
+### Changes
+
+* Add a Passenger 6.2.1 fixture captured from a live instance and a matching
+  spec. The XML schema is unchanged from 6.1, so no parser changes were needed
+
 ## 2.0.0 (2026-09-30)
 
 ### New features
