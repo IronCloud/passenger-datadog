@@ -382,6 +382,52 @@ describe PassengerDatadog do
     end
   end
 
+  # Captured from a live Passenger 6.2.1 standalone instance in a ruby:3.3
+  # container (procps installed, so process metrics are present), running as a
+  # non-root user. Same element set as the 6.1.8 fixture.
+  context 'passenger 6.2' do
+    before do
+      allow(subject).to receive(:`).and_return(File.read('spec/fixtures/passenger_6_2_status.xml'))
+    end
+
+    let(:passenger_status) do
+      [['passenger.pool.used', '1'],
+       ['passenger.pool.max', '6'],
+       ['passenger.request_queue', '0'],
+
+       ['passenger.capacity_used', '1'],
+       ['passenger.get_wait_list_size', '0'],
+       ['passenger.disable_wait_list_size', '0'],
+       ['passenger.processes_being_spawned', '0'],
+       ['passenger.enabled_process_count', '1'],
+       ['passenger.disabling_process_count', '0'],
+       ['passenger.disabled_process_count', '0'],
+
+       ['passenger.processed', '7', { tags: ['passenger-process:0'] }],
+       ['passenger.sessions', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.busyness', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.concurrency', '1', { tags: ['passenger-process:0'] }],
+       ['passenger.cpu', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.rss', '14284', { tags: ['passenger-process:0'] }],
+       ['passenger.private_dirty', '2836', { tags: ['passenger-process:0'] }],
+       ['passenger.pss', '8016', { tags: ['passenger-process:0'] }],
+       ['passenger.swap', '0', { tags: ['passenger-process:0'] }],
+       ['passenger.real_memory', '2836', { tags: ['passenger-process:0'] }],
+       ['passenger.vmsize', '616716', { tags: ['passenger-process:0'] }]]
+    end
+
+    it 'sends stats to datadog' do
+      allow(Datadog::Statsd).to receive(:new).and_return(statsd)
+      allow(statsd).to receive(:close)
+
+      passenger_status.each do |key, *value|
+        expect(statsd).to receive(:gauge).with(key, *value)
+      end
+
+      subject.run
+    end
+  end
+
   # Captured from a live Passenger 6.1.8 standalone instance started with
   # --min-instances 0 and never sent a request: the group exists, `<processes/>`
   # is empty, and every count is zero.
